@@ -1,0 +1,1 @@
+# RSS Core Admin release rules. Keep empty until a verified shrinker requirement exists.
