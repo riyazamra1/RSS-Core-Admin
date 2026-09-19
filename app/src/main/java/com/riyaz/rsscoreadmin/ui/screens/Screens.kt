@@ -168,10 +168,17 @@ fun DomainConnectivityScreen(health: EndpointHealth?, onCheck: () -> Unit) {
 }
 
 @Composable private fun ModuleCard(title: String, body: String, onClick: (() -> Unit)? = null) {
-    ElevatedCard(onClick = onClick ?: {}) { Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Text(title, style = MaterialTheme.typography.titleMedium)
-        Text(body, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    } }
+    val content: @Composable () -> Unit = {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(body, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+    if (onClick != null) {
+        ElevatedCard(onClick = onClick, content = content)
+    } else {
+        ElevatedCard(content = content)
+    }
 }
 
 private fun stateText(s: HealthState) = when (s) {
