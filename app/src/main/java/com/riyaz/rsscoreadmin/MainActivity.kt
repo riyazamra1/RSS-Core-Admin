@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material3.*
@@ -67,7 +68,7 @@ private fun AdminApp(vm: AdminViewModel = viewModel()) {
         topBar = {
             TopAppBar(
                 title = { Text("RSS Core Admin") },
-                actions = { IconButton(onClick = vm::refresh) { Icon(Icons.Default.Settings, "Refresh") } }
+                actions = { IconButton(onClick = vm::refresh) { Icon(Icons.Default.Refresh, "Refresh") } }
             )
         },
         bottomBar = {
