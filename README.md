@@ -34,3 +34,5 @@ Artifact:
 `rss-core-admin-debug`
 
 The workflow installs Gradle 8.11.1 directly, so the repository does not depend on a checked-in Gradle wrapper.
+
+CI verification branch: validates the pull-request build trigger.
