@@ -57,6 +57,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AdminApp(vm: AdminViewModel = viewModel()) {
     var selected by remember { mutableStateOf(AdminDestination.COMMAND_CENTER) }
