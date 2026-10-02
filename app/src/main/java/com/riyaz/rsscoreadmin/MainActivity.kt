@@ -11,7 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.riyaz.rsscoreadmin.data.*
@@ -21,7 +21,7 @@ import com.riyaz.rsscoreadmin.ui.theme.RssCoreAdminTheme
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-private class AdminViewModel(private val application: android.app.Application) : ViewModel() {
+private class AdminViewModel(application: android.app.Application) : AndroidViewModel(application) {
     private val api = RssCoreApi(application)
     private val session = SecureSessionStore(application)
     private val endpoint = EndpointConfiguration()
@@ -54,7 +54,7 @@ private class AdminViewModel(private val application: android.app.Application) :
         viewModelScope.launch {
             busy = true; authError = null
             try {
-                val token = api.verifyOtp(challenge, otp.filter(Char::isDigit)).optString("token")
+                val token = api.verifyOtp(challenge, otp).optString("token")
                 if (token.isBlank()) error("Session token was not returned")
                 session.saveAccessToken(token)
                 challengeId = null
@@ -76,7 +76,6 @@ private class AdminViewModel(private val application: android.app.Application) :
     }
 
     fun refresh() {
-        if (busy && !authenticated) return
         viewModelScope.launch {
             health = api.checkEndpoint(endpoint.primary)
             if (health?.state == HealthState.HEALTHY) {
@@ -125,8 +124,10 @@ private class AdminViewModel(private val application: android.app.Application) :
                 }
                 loadModule(destination)
                 onDone?.invoke()
-            } catch (t: Throwable) { moduleError = t.message ?: "Update failed" }
-            finally { busy = false }
+            } catch (t: Throwable) {
+                if (t is AdminApiException && t.code == 401) { logout(); return@launch }
+                moduleError = t.message ?: "Update failed"
+            } finally { busy = false }
         }
     }
 }
