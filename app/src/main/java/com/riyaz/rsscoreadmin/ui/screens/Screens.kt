@@ -168,7 +168,7 @@ fun DomainConnectivityScreen(health: EndpointHealth?, onCheck: () -> Unit) {
 }
 
 @Composable private fun ModuleCard(title: String, body: String, onClick: (() -> Unit)? = null) {
-    val content: @Composable () -> Unit = {
+    val content: @Composable ColumnScope.() -> Unit = {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             Text(body, color = MaterialTheme.colorScheme.onSurfaceVariant)
