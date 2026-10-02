@@ -205,10 +205,34 @@ fun AdminModuleScreen(destination: AdminDestination, data: JSONObject?, error: S
     Button(onClick={mutate(AdminDestination.MAINTENANCE,"PUT","/api/v1/admin/maintenance",JSONObject().put("project_key",project).put("enabled",enabled).put("min_supported_version",version).put("message",message),{reload(AdminDestination.MAINTENANCE)})}){Text("Save maintenance")}
 }
 
-@Composable private fun AdsContent(d:JSONObject?,q:String,mutate:(AdminDestination,String,String,JSONObject,(() -> Unit)?)->Unit,reload:(AdminDestination)->Unit){
-    Text("Central ad providers, placements, test mode, frequency and ad-free policies.")
-    val providers=d?.optJSONArray("providers")?:JSONArray();Text("Providers: "+providers.length())
-    val rows=d?.optJSONArray("configs")?:JSONArray();for(i in 0 until rows.length()){val x=rows.optJSONObject(i)?:continue;if(matches(x,q))ElevatedCard{Column(Modifier.padding(14.dp)){Text(x.optString("project_name")+" • "+x.optString("provider_key")+" • "+x.optString("placement_key"),style=MaterialTheme.typography.titleMedium);Text(x.optString("ad_format")+" • "+(if(x.optBoolean("enabled"))"Enabled" else "Disabled")+" • "+(if(x.optBoolean("test_mode"))"Test" else "Production"));Text("Frequency "+x.optInt("frequency_seconds")+"s • max "+x.optInt("max_ads_per_session"));Button(onClick={mutate(AdminDestination.ADS,"PUT","/api/v1/admin/ads",JSONObject().put("project_key",x.optString("project_key")).put("provider_key",x.optString("provider_key")).put("placement_key",x.optString("placement_key")).put("ad_format",x.optString("ad_format")).put("placement_enabled",!x.optBoolean("enabled")).put("test_mode",x.optBoolean("test_mode")).put("frequency_seconds",x.optInt("frequency_seconds")).put("max_ads_per_session",x.optInt("max_ads_per_session)),{reload(AdminDestination.ADS)})}){Text(if(x.optBoolean("enabled"))"Disable" else "Enable")}}}}
+@Composable
+private fun AdsContent(d: JSONObject?, q: String, mutate: (AdminDestination,String,String,JSONObject,(() -> Unit)?)->Unit, reload: (AdminDestination)->Unit) {
+    Section("Advertising") {
+        Text("Providers, placements, formats, test mode, frequency and session limits.")
+        val rows = d?.optJSONArray("configs") ?: JSONArray()
+        for (i in 0 until rows.length()) {
+            val x = rows.optJSONObject(i) ?: continue
+            if (matches(x, q)) {
+                Text(x.optString("project_name") + " • " + x.optString("provider_key") + " • " + x.optString("placement_key"))
+                val enabledText = if (x.optBoolean("enabled")) "Enabled" else "Disabled"
+                val modeText = if (x.optBoolean("test_mode")) "Test" else "Production"
+                Text(x.optString("ad_format") + " • " + enabledText + " • " + modeText)
+                Text("Frequency " + x.optInt("frequency_seconds") + "s • max " + x.optInt("max_ads_per_session"))
+                Button(onClick = {
+                    val body = JSONObject()
+                        .put("project_key", x.optString("project_key"))
+                        .put("provider_key", x.optString("provider_key"))
+                        .put("placement_key", x.optString("placement_key"))
+                        .put("ad_format", x.optString("ad_format"))
+                        .put("test_mode", x.optBoolean("test_mode"))
+                        .put("frequency_seconds", x.optInt("frequency_seconds"))
+                        .put("max_ads_per_session", x.optInt("max_ads_per_session"))
+                        .put("placement_enabled", !x.optBoolean("enabled"))
+                    mutate(AdminDestination.ADS, "PUT", "/api/v1/admin/ads", body, { reload(AdminDestination.ADS) })
+                }) { Text(if (x.optBoolean("enabled")) "Disable" else "Enable") }
+            }
+        }
+    }
 }
 
 @Composable private fun AuditContent(d:JSONObject?,q:String){
