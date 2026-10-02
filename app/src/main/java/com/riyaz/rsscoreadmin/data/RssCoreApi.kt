@@ -1,19 +1,20 @@
 package com.riyaz.rsscoreadmin.data
 
+import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
-/** Only uses RSS Core endpoints verified in the inspected source contract. */
-class RssCoreApi {
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .writeTimeout(15, TimeUnit.SECONDS)
-        .build()
+class RssCoreApi(private val context: Context? = null) {
+    private val client = OkHttpClient.Builder().connectTimeout(10, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).writeTimeout(20, TimeUnit.SECONDS).build()
+    private val session by lazy { context?.let { SecureSessionStore(it) } }
+    private val jsonMedia = "application/json".toMediaType()
+    private fun token(): String? = session?.getAccessToken()
 
     suspend fun checkEndpoint(endpoint: String): EndpointHealth = withContext(Dispatchers.IO) {
         val started = System.nanoTime()
@@ -24,12 +25,7 @@ class RssCoreApi {
                 val elapsed = (System.nanoTime() - started) / 1_000_000
                 val body = response.body?.string().orEmpty()
                 val service = runCatching { JSONObject(body).optString("service") }.getOrNull()
-                val state = when {
-                    response.isSuccessful && service == "rss-core" -> HealthState.HEALTHY
-                    response.code in 500..599 -> HealthState.DEGRADED
-                    else -> HealthState.DEGRADED
-                }
-                EndpointHealth(endpoint, state, response.code, elapsed, System.currentTimeMillis().toString(), serviceIdentity = service)
+                EndpointHealth(endpoint, if (response.isSuccessful && service == "rss-core") HealthState.HEALTHY else HealthState.DEGRADED, response.code, elapsed, System.currentTimeMillis().toString(), serviceIdentity = service)
             }
         } catch (t: Throwable) {
             EndpointHealth(endpoint, HealthState.OFFLINE, responseMs = (System.nanoTime() - started) / 1_000_000, checkedAt = System.currentTimeMillis().toString(), errorCategory = t.javaClass.simpleName)
@@ -40,36 +36,63 @@ class RssCoreApi {
         try {
             val request = Request.Builder().url(endpoint.trimEnd('/') + "/api/v1/status").get().build()
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext CoreStatusResult.Unavailable("HTTP ${response.code}")
+                if (!response.isSuccessful) return@withContext CoreStatusResult.Unavailable("HTTP " + response.code)
                 val json = JSONObject(response.body?.string().orEmpty())
-                CoreStatusResult.Available(
-                    json.optString("version").takeIf { it.isNotBlank() },
-                    json.optString("runtime").takeIf { it.isNotBlank() },
-                    json.optString("storage").takeIf { it.isNotBlank() },
-                    json.optString("ai").takeIf { it.isNotBlank() }
-                )
+                CoreStatusResult.Available(json.optString("version").takeIf { it.isNotBlank() }, json.optString("runtime").takeIf { it.isNotBlank() }, json.optString("storage").takeIf { it.isNotBlank() }, json.optString("ai").takeIf { it.isNotBlank() })
             }
-        } catch (t: Throwable) {
-            CoreStatusResult.Unavailable(t.javaClass.simpleName)
-        }
+        } catch (t: Throwable) { CoreStatusResult.Unavailable(t.javaClass.simpleName) }
     }
 
     suspend fun fetchProjects(endpoint: String): CoreProjectsResult = withContext(Dispatchers.IO) {
         try {
             val request = Request.Builder().url(endpoint.trimEnd('/') + "/api/v1/projects").get().build()
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext CoreProjectsResult.Unavailable("HTTP ${response.code}")
+                if (!response.isSuccessful) return@withContext CoreProjectsResult.Unavailable("HTTP " + response.code)
                 val json = JSONObject(response.body?.string().orEmpty())
                 val array = json.optJSONArray("projects")
-                CoreProjectsResult.Available(buildList {
-                    if (array != null) for (i in 0 until array.length()) add(array.optString(i))
-                })
+                CoreProjectsResult.Available(buildList { if (array != null) for (i in 0 until array.length()) add(array.optString(i)) })
             }
-        } catch (t: Throwable) {
-            CoreProjectsResult.Unavailable(t.javaClass.simpleName)
+        } catch (t: Throwable) { CoreProjectsResult.Unavailable(t.javaClass.simpleName) }
+    }
+
+    suspend fun adminGet(path: String): JSONObject = request("GET", path)
+    suspend fun adminPut(path: String, body: JSONObject): JSONObject = request("PUT", path, body)
+    suspend fun adminPost(path: String, body: JSONObject? = null): JSONObject = request("POST", path, body)
+    suspend fun adminDelete(path: String, body: JSONObject? = null): JSONObject = request("DELETE", path, body)
+
+    suspend fun login(email: String, password: String): JSONObject = publicRequest("/api/v1/admin/login", JSONObject().put("email", email).put("password", password))
+    suspend fun verifyOtp(challengeId: String, otp: String): JSONObject = publicRequest("/api/v1/admin/verify-otp", JSONObject().put("challenge_id", challengeId).put("otp", otp))
+    suspend fun logout(): JSONObject = adminPost("/api/v1/admin/logout")
+
+    private suspend fun request(method: String, path: String, body: JSONObject? = null): JSONObject = withContext(Dispatchers.IO) {
+        val builder = Request.Builder().url("https://rsscore.cv" + path).addHeader("Accept", "application/json").addHeader("Authorization", "Bearer " + token().orEmpty())
+        if (body != null) builder.addHeader("Content-Type", "application/json")
+        val rb = body?.toString()?.toRequestBody(jsonMedia)
+        val request = when (method) {
+            "POST" -> builder.post(rb ?: "{}".toRequestBody(jsonMedia)).build()
+            "PUT" -> builder.put(rb ?: "{}".toRequestBody(jsonMedia)).build()
+            "DELETE" -> builder.delete(rb ?: "{}".toRequestBody(jsonMedia)).build()
+            else -> builder.get().build()
+        }
+        executeJson(request)
+    }
+
+    private suspend fun publicRequest(path: String, body: JSONObject): JSONObject = withContext(Dispatchers.IO) {
+        val request = Request.Builder().url("https://rsscore.cv" + path).addHeader("Accept", "application/json").addHeader("Content-Type", "application/json").post(body.toString().toRequestBody(jsonMedia)).build()
+        executeJson(request)
+    }
+
+    private fun executeJson(request: Request): JSONObject {
+        client.newCall(request).execute().use { response ->
+            val raw = response.body?.string().orEmpty()
+            val data = runCatching { JSONObject(raw) }.getOrElse { JSONObject().put("raw", raw) }
+            if (!response.isSuccessful) throw AdminApiException(response.code, data.optString("error").ifBlank { data.optString("message").ifBlank { "HTTP " + response.code } })
+            return data
         }
     }
 }
+
+class AdminApiException(val code: Int, message: String): Exception(message)
 
 sealed interface CoreStatusResult {
     data class Available(val version: String?, val runtime: String?, val storage: String?, val ai: String?) : CoreStatusResult
