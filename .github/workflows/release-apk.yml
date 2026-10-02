@@ -1,6 +1,11 @@
 name: Release APK
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/release-apk.yml'
   workflow_dispatch:
 
 permissions:
