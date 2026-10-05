@@ -54,7 +54,7 @@ private class AdminViewModel(application: android.app.Application) : AndroidView
         viewModelScope.launch {
             busy = true; authError = null
             try {
-                val token = api.verifyOtp(challenge, otp).optString("token")
+                val token = api.verifyOtp(challenge, "RSC-" + otp).optString("token")
                 if (token.isBlank()) error("Session token was not returned")
                 session.saveAccessToken(token)
                 challengeId = null
@@ -167,6 +167,18 @@ private fun AdminApp(vm: AdminViewModel = viewModel()) {
                 title = { Text(selected.title) },
                 actions = {
                     IconButton(onClick = { if (selected == AdminDestination.COMMAND_CENTER) vm.refresh() else vm.loadModule(selected) }) { Icon(Icons.Default.Refresh, "Refresh") }
+                    var menuOpen by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.Menu, "Admin modules") }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            AdminDestination.values().filter { it != AdminDestination.COMMAND_CENTER }.forEach { d ->
+                                DropdownMenuItem(
+                                    text = { Text(d.title) },
+                                    onClick = { selected = d; menuOpen = false }
+                                )
+                            }
+                        }
+                    }
                     IconButton(onClick = vm::logout) { Icon(Icons.Default.ExitToApp, "Sign out") }
                 }
             )
