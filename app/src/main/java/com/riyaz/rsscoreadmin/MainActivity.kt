@@ -104,7 +104,17 @@ private class AdminViewModel(application: android.app.Application) : AndroidView
                     AdminDestination.SYSTEM -> "/api/v1/status"
                     else -> return@launch
                 }
-                moduleData = api.adminGet(path)
+                moduleData = if (destination == AdminDestination.ACCOUNTS) {
+                    val registrations = api.adminGet("/api/v1/admin/registration-requests?status=pending")
+                    val approvals = api.adminGet("/api/v1/admin/project-manager/approval-requests?status=pending")
+                    JSONObject()
+                        .put("requests", registrations.optJSONArray("requests") ?: org.json.JSONArray())
+                        .put("approval_requests", approvals.optJSONArray("requests")
+                            ?: approvals.optJSONArray("approval_requests")
+                            ?: org.json.JSONArray())
+                } else {
+                    api.adminGet(path)
+                }
             } catch (t: Throwable) {
                 if (t is AdminApiException && t.code == 401) { logout(); return@launch }
                 moduleError = t.message ?: "Request failed"
