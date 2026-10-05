@@ -33,11 +33,18 @@ fun LoginScreen(otp: Boolean, busy: Boolean, error: String?, onLogin: (String,St
             Button(onClick={onLogin(email,password)}, enabled=!busy && email.isNotBlank() && password.isNotBlank(), Modifier.fillMaxWidth()) { Text(if(busy) "Signing in…" else "Sign in") }
         } else {
             Text("Verification code", style=MaterialTheme.typography.titleLarge)
-            Text("Enter the 9-digit code sent to the administrator email.")
+            Text("Enter the six-digit code sent to the administrator email.")
             Spacer(Modifier.height(10.dp))
-            OutlinedTextField(code, { code=it.filter(Char::isDigit).take(9) }, Modifier.fillMaxWidth(), label={Text("OTP")}, singleLine=true)
+            OutlinedTextField(
+                value = code,
+                onValueChange = { code = it.filter(Char::isDigit).take(6) },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("OTP") },
+                prefix = { Text("RSC-") },
+                singleLine = true
+            )
             Spacer(Modifier.height(16.dp))
-            Button(onClick={onVerify(code)}, enabled=!busy && code.length==9, Modifier.fillMaxWidth()) { Text(if(busy) "Verifying…" else "Verify and enter") }
+            Button(onClick={onVerify(code)}, enabled=!busy && code.length==6, Modifier.fillMaxWidth()) { Text(if(busy) "Verifying…" else "Verify and enter") }
         }
         if (!error.isNullOrBlank()) {
             Spacer(Modifier.height(12.dp)); Text(error, color=MaterialTheme.colorScheme.error)
@@ -117,7 +124,39 @@ fun AdminModuleScreen(destination: AdminDestination, data: JSONObject?, error: S
         }
     }
     Section("RSS AI Project Manager approvals") {
-        Text("Project Manager approvals are served by the same authenticated control plane. Open refresh after a decision to synchronize the queue.")
+        val approvals = d?.optJSONArray("approval_requests") ?: JSONArray()
+        if (approvals.length() == 0) {
+            Text("No pending RSS AI Project Manager approval requests.")
+        }
+        for (i in 0 until approvals.length()) {
+            val x = approvals.optJSONObject(i) ?: continue
+            if (matches(x, q)) {
+                ActionRow(
+                    x.optString("name", x.optString("email", "Unnamed")),
+                    x.optString("email") + " • " + x.optString("status", "pending"),
+                    "Approve",
+                    "Reject",
+                    {
+                        mutate(
+                            AdminDestination.ACCOUNTS,
+                            "POST",
+                            "/api/v1/admin/project-manager/approval-requests/" + x.optString("id") + "/approve",
+                            JSONObject(),
+                            { reload(AdminDestination.ACCOUNTS) }
+                        )
+                    },
+                    {
+                        mutate(
+                            AdminDestination.ACCOUNTS,
+                            "POST",
+                            "/api/v1/admin/project-manager/approval-requests/" + x.optString("id") + "/reject",
+                            JSONObject(),
+                            { reload(AdminDestination.ACCOUNTS) }
+                        )
+                    }
+                )
+            }
+        }
     }
 }
 
