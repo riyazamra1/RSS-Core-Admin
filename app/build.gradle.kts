@@ -5,7 +5,7 @@ plugins {
 }
 
 android { namespace = "com.riyaz.rsscoreadmin"; compileSdk = 35
-    defaultConfig { applicationId = "com.riyaz.rsscoreadmin"; minSdk = 26; targetSdk = 35; versionCode = 1; versionName = "0.1.0" }
+    defaultConfig { applicationId = "com.riyaz.rsscoreadmin"; minSdk = 26; targetSdk = 35; versionCode = 2; versionName = "1.0.1" }
     buildTypes { release { isMinifyEnabled = true; proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro") } }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
