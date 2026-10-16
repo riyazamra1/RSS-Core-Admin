@@ -30,7 +30,7 @@ fun LoginScreen(otp: Boolean, busy: Boolean, error: String?, onLogin: (String,St
             Spacer(Modifier.height(10.dp))
             OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label={Text("Password")}, singleLine=true, visualTransformation=PasswordVisualTransformation())
             Spacer(Modifier.height(16.dp))
-            Button(onClick={onLogin(email,password)}, enabled=!busy && email.isNotBlank() && password.isNotBlank(), Modifier.fillMaxWidth()) { Text(if(busy) "Signing in…" else "Sign in") }
+            Button(onClick={onLogin(email,password)}, modifier=Modifier.fillMaxWidth(), enabled=!busy && email.isNotBlank() && password.isNotBlank()) { Text(if(busy) "Signing in…" else "Sign in") }
         } else {
             Text("Verification code", style=MaterialTheme.typography.titleLarge)
             Text("Enter the six-digit code sent to the administrator email.")
@@ -44,7 +44,7 @@ fun LoginScreen(otp: Boolean, busy: Boolean, error: String?, onLogin: (String,St
                 singleLine = true
             )
             Spacer(Modifier.height(16.dp))
-            Button(onClick={onVerify(code)}, enabled=!busy && code.length==6, Modifier.fillMaxWidth()) { Text(if(busy) "Verifying…" else "Verify and enter") }
+            Button(onClick={onVerify(code)}, modifier=Modifier.fillMaxWidth(), enabled=!busy && code.length==6) { Text(if(busy) "Verifying…" else "Verify and enter") }
         }
         if (!error.isNullOrBlank()) {
             Spacer(Modifier.height(12.dp)); Text(error, color=MaterialTheme.colorScheme.error)
@@ -94,19 +94,21 @@ fun AdminModuleScreen(destination: AdminDestination, data: JSONObject?, error: S
         if (destination in listOf(AdminDestination.ACCOUNTS,AdminDestination.PROJECTS,AdminDestination.PRICING,AdminDestination.ENTITLEMENTS,AdminDestination.FEATURES,AdminDestination.CONFIG,AdminDestination.LIMITS,AdminDestination.MAINTENANCE,AdminDestination.ADS,AdminDestination.AUDIT)) {
             item { OutlinedTextField(query,{query=it},Modifier.fillMaxWidth(),label={Text("Search / filter")},singleLine=true, trailingIcon={Icon(Icons.Default.Search,null)}) }
         }
-        when(destination) {
-            AdminDestination.ACCOUNTS -> AccountsContent(data,query,mutate,reload)
-            AdminDestination.PROJECTS -> ProjectsContent(data,query,mutate,reload)
-            AdminDestination.PRICING -> PricingContent(data,query,mutate,reload)
-            AdminDestination.ENTITLEMENTS -> EntitlementsContent(data,query,mutate,reload)
-            AdminDestination.FEATURES -> FeatureContent(data,query,mutate,reload)
-            AdminDestination.CONFIG -> ConfigContent(data,query,mutate,reload)
-            AdminDestination.LIMITS -> LimitsContent(data,query,mutate,reload)
-            AdminDestination.MAINTENANCE -> MaintenanceContent(data,query,mutate,reload)
-            AdminDestination.ADS -> AdsContent(data,query,mutate,reload)
-            AdminDestination.AUDIT -> AuditContent(data,query)
-            AdminDestination.SYSTEM -> SystemContent(data)
-            else -> Unit
+        item {
+            when(destination) {
+                AdminDestination.ACCOUNTS -> AccountsContent(data,query,mutate,reload)
+                AdminDestination.PROJECTS -> ProjectsContent(data,query,mutate,reload)
+                AdminDestination.PRICING -> PricingContent(data,query,mutate,reload)
+                AdminDestination.ENTITLEMENTS -> EntitlementsContent(data,query,mutate,reload)
+                AdminDestination.FEATURES -> FeatureContent(data,query,mutate,reload)
+                AdminDestination.CONFIG -> ConfigContent(data,query,mutate,reload)
+                AdminDestination.LIMITS -> LimitsContent(data,query,mutate,reload)
+                AdminDestination.MAINTENANCE -> MaintenanceContent(data,query,mutate,reload)
+                AdminDestination.ADS -> AdsContent(data,query,mutate,reload)
+                AdminDestination.AUDIT -> AuditContent(data,query)
+                AdminDestination.SYSTEM -> SystemContent(data)
+                else -> Unit
+            }
         }
         if (busy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
     }
