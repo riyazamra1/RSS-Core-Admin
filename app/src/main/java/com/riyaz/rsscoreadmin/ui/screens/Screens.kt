@@ -164,11 +164,36 @@ fun AdminModuleScreen(destination: AdminDestination, data: JSONObject?, error: S
 
 @Composable private fun ProjectsContent(d:JSONObject?, q:String, mutate:(AdminDestination,String,String,JSONObject,(() -> Unit)?)->Unit, reload:(AdminDestination)->Unit) {
     val rows=d?.optJSONArray("projects") ?: JSONArray()
-    Button(onClick={ mutate(AdminDestination.PROJECTS,"POST","/api/v1/admin/projects",JSONObject().put("key","new-project").put("name","New Project").put("active",true),{reload(AdminDestination.PROJECTS)}) }) { Text("Add project") }
+    Text("Project registry • project creation is disabled here until the server exposes a verified create endpoint.", color=MaterialTheme.colorScheme.onSurfaceVariant)
+    if(rows.length()==0) Text("No registered projects returned by RSS Core.")
     for(i in 0 until rows.length()) {
         val x=rows.optJSONObject(i) ?: continue
-        if(matches(x,q)) ActionRow(x.optString("name"),x.optString("key")+" • "+if(x.optBoolean("active"))"ACTIVE" else "INACTIVE","Deactivate","",
-            {mutate(AdminDestination.PROJECTS,"DELETE","/api/v1/admin/projects/"+x.optString("key"),JSONObject(),{reload(AdminDestination.PROJECTS)})},{})
+        if(!matches(x,q)) continue
+        val key=x.optString("key")
+        val name=x.optString("name",x.optString("display_name",key))
+        val active=x.optBoolean("active")
+        ElevatedCard {
+            Column(Modifier.fillMaxWidth().padding(14.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
+                Text(name,style=MaterialTheme.typography.titleMedium)
+                Text(key,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                StatusRow("Status",if(active)"ACTIVE" else "INACTIVE")
+                StatusRow("Platform",x.optString("platform","—").ifBlank{"—"})
+                StatusRow("Version",x.optString("version","—").ifBlank{"—"})
+                StatusRow("Repository",x.optString("repository_url","—").ifBlank{"—"})
+                Button(
+                    onClick={
+                        mutate(
+                            AdminDestination.PROJECTS,
+                            "PUT",
+                            "/api/v1/admin/projects",
+                            JSONObject().put("key",key).put("name",name).put("active",!active),
+                            {reload(AdminDestination.PROJECTS)}
+                        )
+                    },
+                    enabled=key.isNotBlank()
+                ) { Text(if(active)"Disable project" else "Enable project") }
+            }
+        }
     }
 }
 
