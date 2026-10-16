@@ -29,6 +29,7 @@ private class AdminViewModel(application: android.app.Application) : AndroidView
     var authenticated by mutableStateOf(session.getAccessToken() != null); private set
     var challengeId by mutableStateOf<String?>(null); private set
     var busy by mutableStateOf(false); private set
+    var refreshing by mutableStateOf(false); private set
     var authError by mutableStateOf<String?>(null); private set
     var health by mutableStateOf<EndpointHealth?>(null); private set
     var status by mutableStateOf<CoreStatusResult?>(null); private set
@@ -38,10 +39,19 @@ private class AdminViewModel(application: android.app.Application) : AndroidView
 
     fun login(email: String, password: String) {
         if (busy) return
+        val normalizedEmail = email.trim()
+        if (normalizedEmail.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()) {
+            authError = "Enter a valid administrator email address."
+            return
+        }
+        if (password.isBlank()) {
+            authError = "Enter your administrator password."
+            return
+        }
         viewModelScope.launch {
-            busy = true; authError = null
+            busy = true; authError = null; challengeId = null
             try {
-                challengeId = api.login(email.trim(), password).optString("challenge_id").ifBlank { null }
+                challengeId = api.login(normalizedEmail, password).optString("challenge_id").ifBlank { null }
                 if (challengeId == null) authError = "Administrator verification challenge was not returned."
             } catch (t: Throwable) { authError = t.message ?: "Sign in failed" }
             finally { busy = false }
@@ -51,6 +61,10 @@ private class AdminViewModel(application: android.app.Application) : AndroidView
     fun verifyOtp(otp: String) {
         val challenge = challengeId ?: return
         if (busy) return
+        if (otp.length != 6 || otp.any { !it.isDigit() }) {
+            authError = "Enter all six digits from your RSC verification code."
+            return
+        }
         viewModelScope.launch {
             busy = true; authError = null
             try {
@@ -76,12 +90,21 @@ private class AdminViewModel(application: android.app.Application) : AndroidView
     }
 
     fun refresh() {
+        if (refreshing) return
         viewModelScope.launch {
-            health = api.checkEndpoint(endpoint.primary)
-            if (health?.state == HealthState.HEALTHY) {
-                status = api.fetchStatus(endpoint.active)
-                projects = api.fetchProjects(endpoint.active)
-            } else { status = null; projects = null }
+            refreshing = true
+            try {
+                health = api.checkEndpoint(endpoint.primary)
+                if (health?.state == HealthState.HEALTHY) {
+                    status = api.fetchStatus(endpoint.active)
+                    projects = api.fetchProjects(endpoint.active)
+                } else {
+                    status = null
+                    projects = null
+                }
+            } finally {
+                refreshing = false
+            }
         }
     }
 
@@ -89,6 +112,7 @@ private class AdminViewModel(application: android.app.Application) : AndroidView
         if (!authenticated || destination == AdminDestination.COMMAND_CENTER || destination == AdminDestination.SECURITY || destination == AdminDestination.SETTINGS) return
         viewModelScope.launch {
             moduleError = null
+            moduleData = null
             try {
                 val path = when (destination) {
                     AdminDestination.ACCOUNTS -> "/api/v1/admin/registration-requests?status=pending"
