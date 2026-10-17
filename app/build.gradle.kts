@@ -4,9 +4,39 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-android { namespace = "com.riyaz.rsscoreadmin"; compileSdk = 35
-    defaultConfig { applicationId = "com.riyaz.rsscoreadmin"; minSdk = 26; targetSdk = 35; versionCode = 2; versionName = "1.0.1" }
-    buildTypes { release { isMinifyEnabled = true; proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro") } }
+android {
+    namespace = "com.riyaz.rsscoreadmin"
+    compileSdk = 35
+    val releaseVersionName = providers.gradleProperty("appVersionName").orElse("1.0.1").get()
+    val releaseVersionCode = providers.gradleProperty("appVersionCode").orElse("2").get().toInt()
+
+    defaultConfig {
+        applicationId = "com.riyaz.rsscoreadmin"
+        minSdk = 26
+        targetSdk = 35
+        versionCode = releaseVersionCode
+        versionName = releaseVersionName
+    }
+
+    signingConfigs {
+        create("release") {
+            val keyPath = System.getenv("ANDROID_KEYSTORE_PATH")
+            if (!keyPath.isNullOrBlank()) {
+                storeFile = file(keyPath)
+                storePassword = System.getenv("ANDROID_STORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = true
+            signingConfig = signingConfigs.getByName("release")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true; buildConfig = true }
