@@ -34,3 +34,13 @@ Artifact:
 `rss-core-admin-debug`
 
 The workflow installs Gradle 8.11.1 directly, so the repository does not depend on a checked-in Gradle wrapper.
+
+## APK update behavior
+
+- On app launch, the client checks the latest published GitHub Release and prompts when a newer semantic version has an APK asset.
+- Selecting **Download update** opens the official release APK link. Android still requires the user to approve installing an APK; ordinary apps cannot silently install themselves.
+- The app ID must remain `com.riyaz.rsscoreadmin`, versionCode must increase, and every release must use the same private signing key or Android will reject the update.
+- The signed release workflow is `.github/workflows/release-android.yml`. It runs on a `vMAJOR.MINOR.PATCH` tag or manual dispatch and publishes an APK plus SHA-256 checksum.
+- Before publishing the first signed release, configure these repository Actions secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`, and `ANDROID_STORE_PASSWORD`. Keep a secure offline backup of the keystore. Never commit the keystore or its passwords.
+- If a previously installed APK was signed with a different key, Android will require that app to be uninstalled before installing the first release-signed APK. After that one-time migration, same-key releases can update in place and preserve app data.
+- A new release is not considered live until the release workflow succeeds and the APK asset is visible on the GitHub Releases page.
