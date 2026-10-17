@@ -1,6 +1,8 @@
 package com.riyaz.rsscoreadmin
 
 import android.os.Bundle
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -8,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -169,7 +172,40 @@ private class AdminViewModel(application: android.app.Application) : AndroidView
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { RssCoreAdminTheme { AdminApp() } }
+        setContent {
+            RssCoreAdminTheme {
+                val context = LocalContext.current
+                var availableUpdate by remember { mutableStateOf<AppUpdate?>(null) }
+                LaunchedEffect(Unit) {
+                    availableUpdate = runCatching {
+                        AppUpdateChecker.check(BuildConfig.VERSION_NAME)
+                    }.getOrNull()
+                }
+                AdminApp()
+                availableUpdate?.let { update ->
+                    AlertDialog(
+                        onDismissRequest = { availableUpdate = null },
+                        title = { Text("RSS Core update available") },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("Version ${update.version} is available. Installed version: ${BuildConfig.VERSION_NAME}.")
+                                if (update.releaseNotes.isNotBlank()) Text(update.releaseNotes)
+                                Text("Android will ask you to approve installation. Your existing app data should remain in place when the update is signed with the same release key.")
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                availableUpdate = null
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(update.downloadUrl)))
+                            }) { Text("Download update") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { availableUpdate = null }) { Text("Later") }
+                        }
+                    )
+                }
+            }
+        }
     }
 }
 
