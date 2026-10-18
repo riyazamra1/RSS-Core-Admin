@@ -2,6 +2,10 @@ package com.riyaz.rsscoreadmin
 
 import android.os.Bundle
 import android.content.Intent
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.Settings
 import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -12,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
@@ -213,7 +218,20 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun AdminApp(vm: AdminViewModel = viewModel()) {
     if (!vm.authenticated) {
-        LoginScreen(vm.challengeId != null, vm.busy, vm.authError, vm::login, vm::verifyOtp)
+        val context = LocalContext.current
+        Box(Modifier.fillMaxSize()) {
+            LoginScreen(vm.challengeId != null, vm.busy, vm.authError, vm::login, vm::verifyOtp)
+            Button(
+                onClick = {
+                    if (Build.VERSION.SDK_INT >= 33 &&
+                        androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                        (context as? ComponentActivity)?.requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 442)
+                    }
+                    context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                },
+                modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp)
+            ) { Text("Enable OTP copy in notification bar") }
+        }
         return
     }
 
